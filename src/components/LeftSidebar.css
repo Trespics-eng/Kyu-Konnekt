@@ -1,0 +1,255 @@
+/* ==========================================================================
+   LEFT SIDEBAR
+   ========================================================================== */
+
+.left-sidebar {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 0 24px;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+}
+
+.sidebar-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 10px 10px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.sidebar-section-label button {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border-radius: 4px;
+}
+
+.main-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: #607086;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.16s, color 0.16s;
+}
+
+.nav-link:hover {
+  background: #edf2f7;
+  color: var(--navy);
+}
+
+.nav-link.nav-active {
+  background: #eaf1fd;
+  color: #1d55a4;
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.nav-link svg {
+  flex: none;
+}
+
+.nav-count {
+  margin-left: auto;
+  border-radius: 10px;
+  background: #e5efff;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform 0.16s, background 0.16s, border-color 0.16s, box-shadow 0.16s;
+  min-height: 38px;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button-primary {
+  background: var(--blue);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+}
+
+.button-primary:hover {
+  background: #1d55c5;
+}
+
+.button-secondary {
+  background: #ffffff;
+  border-color: #dbe4ee;
+  color: #244b7f;
+}
+
+.button-secondary:hover {
+  background: #f4f8ff;
+  border-color: #bfcfe4;
+}
+
+.button-ghost {
+  background: transparent;
+  color: #607086;
+}
+
+.button-ghost:hover {
+  background: #edf2f7;
+}
+
+.button-danger {
+  background: #fff5f5;
+  color: #c2413a;
+  border-color: #f1d7d5;
+}
+
+.button-danger:hover {
+  background: #fee2e2;
+}
+
+.create-post-button {
+  justify-content: center;
+  margin: 16px 2px 14px;
+  height: 42px;
+  font-size: 13px;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 6px 4px 16px;
+}
+
+.community-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  color: #57677c;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.community-shortcut:hover {
+  background: #edf2f7;
+}
+
+.shortcut-dot {
+  height: 26px;
+  width: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font: 800 11px 'Manrope', sans-serif;
+  flex: none;
+}
+
+.shortcut-blue {
+  background: #e4edfc;
+  color: #376cc0;
+}
+
+.shortcut-teal {
+  background: #e0f4ef;
+  color: #188875;
+}
+
+.shortcut-gold {
+  background: #fff1d8;
+  color: #ac7b20;
+}
+
+.see-all {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 18px 10px 0;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sidebar-footer > div {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.sidebar-footer a {
+  color: #64748b;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .left-sidebar {
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(300px, 86vw);
+    height: 100vh;
+    height: 100dvh;
+    background: #ffffff;
+    box-shadow: 14px 0 45px rgba(19, 36, 62, 0.22);
+    padding: 16px 16px 24px;
+    transform: translateX(-105%);
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex !important;
+    overflow-y: auto;
+  }
+
+  .left-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .mobile-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+}

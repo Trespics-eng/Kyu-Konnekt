@@ -1,0 +1,136 @@
+/* ==========================================================================
+   POST COMPOSER MODAL
+   ========================================================================== */
+
+.composer-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.composer-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.composer-author > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.composer-author b {
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.composer-author small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.composer-author select {
+  max-width: 160px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.composer-textarea {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  padding: 6px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1e293b;
+  min-height: 110px;
+  resize: vertical;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+
+.upload-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.select-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.select-label select {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.composer-privacy {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.upload-preview {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.upload-preview img,
+.upload-preview video {
+  max-height: 220px;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.upload-preview .icon-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.modal-actions .muted-small {
+  margin-right: auto;
+}
+
