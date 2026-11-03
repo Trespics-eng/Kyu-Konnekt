@@ -1,5 +1,46 @@
 import { useEffect, useState } from 'react';
 
+// Automatically purge legacy mock data stored in browser localStorage
+if (typeof window !== 'undefined') {
+  try {
+    const PURGE_KEY = 'kyu:v3_fresh_purged';
+    if (!window.localStorage.getItem(PURGE_KEY)) {
+      const legacyKeys = [
+        'kyu:posts',
+        'kyu:issues',
+        'kyu:businesses',
+        'kyu:articles',
+        'kyu:article-drafts',
+        'kyu:opportunities',
+        'kyu:events',
+        'kyu:stays',
+        'kyu:lost-items',
+        'kyu:chats',
+        'kyu:notifications',
+        'kyu:private-issues',
+        'kyu:followed-people',
+        'kyu:joined-groups',
+        'kyu:liked',
+        'kyu:saved',
+        'kyu:issue-support',
+        'kyu:issue-followed',
+        'kyu:saved-businesses',
+        'kyu:saved-events',
+        'kyu:interested-events',
+        'kyu:article-liked',
+        'kyu:article-saved',
+        'kyu:article-comments',
+        'kyu:issue-comments',
+        'kyu:profile',
+      ];
+      legacyKeys.forEach((k) => window.localStorage.removeItem(k));
+      window.localStorage.setItem(PURGE_KEY, 'true');
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function readStore<T>(key: string, fallback: T): T {
   try {
     const raw = window.localStorage.getItem(`kyu:${key}`);
@@ -28,7 +69,7 @@ export function readImagePreview(file: File, maxBytes = 2_000_000): Promise<stri
   if (file.size > maxBytes) return Promise.reject(new Error('Choose an image smaller than 2 MB.'));
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read this image.'));
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read this image.')));
     reader.onerror = () => reject(new Error('Could not read this image.'));
     reader.readAsDataURL(file);
   });
@@ -39,7 +80,7 @@ export function readMediaPreview(file: File, maxBytes = 2_000_000): Promise<stri
   if (file.size > maxBytes) return Promise.reject(new Error('Choose a media file smaller than 2 MB.'));
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read this media file.'));
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read this media file.')));
     reader.onerror = () => reject(new Error('Could not read this media file.'));
     reader.readAsDataURL(file);
   });

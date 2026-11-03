@@ -1,35 +1,470 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, Bookmark, BookOpen, Heart, MessageCircle, PenLine, Plus, Search, Send, Share2, Sparkles, Trash2 } from 'lucide-react';
 import type { Article, MemberProfile } from '../data/mockData';
-import { articles as seedArticles, me as seedProfile } from '../data/mockData';
+import { defaultProfile } from '../data/mockData';
 import type { SharedContext } from '../components/AppShell';
 import { readImagePreview, shortDate, useLocalStorageState } from '../lib/storage';
 import { Avatar, Badge, Button, EmptyState, Modal, SectionHeading } from '../components/ui';
+import {
+  getArticlesApi,
+  getArticleByIdApi,
+  getArticleDraftsApi,
+  deleteArticleDraftApi,
+  createArticleApi,
+  toggleArticleLikeApi,
+  addArticleCommentApi,
+} from '../lib/api';
 import './BlogsPage.css';
 
 const categories = ['All stories', 'Campus Life', 'Education', 'Technology', 'Entrepreneurship', 'Personal Experiences', 'Opinion', 'Lifestyle', 'Community', 'Career Development', 'Inspiration'];
+
 export default function BlogsPage() {
-  const { id } = useParams(); const navigate = useNavigate(); const { toast } = useOutletContext<SharedContext>();
-  const [profile] = useLocalStorageState<MemberProfile>('profile', seedProfile);
-  const [items, setItems] = useLocalStorageState<Article[]>('articles', seedArticles);
-  const [drafts, setDrafts] = useLocalStorageState<Article[]>('article-drafts', []); const [draftsOpen, setDraftsOpen] = useState(false); const [editingDraft, setEditingDraft] = useState('');
-  const [category, setCategory] = useState('All stories'); const [search, setSearch] = useState(''); const [open, setOpen] = useState(false); const [preview, setPreview] = useState(false); const [liked, setLiked] = useLocalStorageState<string[]>('article-liked', []); const [saved, setSaved] = useLocalStorageState<string[]>('article-saved', []); const [comment, setComment] = useState(''); const [comments, setComments] = useLocalStorageState<Record<string, string[]>>('article-comments', {});
-  const [title, setTitle] = useState(''); const [excerpt, setExcerpt] = useState(''); const [body, setBody] = useState(''); const [writeCategory, setWriteCategory] = useState('Campus Life'); const [tags, setTags] = useState(''); const [image, setImage] = useState(''); const [error, setError] = useState('');
-  const selected = items.find((item) => item.id === id);
-  const filtered = useMemo(() => items.filter((item) => (category === 'All stories' || item.category === category) && `${item.title} ${item.excerpt} ${item.author} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [items, category, search]);
-  const reset = () => { setOpen(false); setPreview(false); setEditingDraft(''); setTitle(''); setExcerpt(''); setBody(''); setImage(''); setTags(''); setError(''); };
-  const pickImage = async (file?: File) => { if (!file) return; try { setImage(await readImagePreview(file)); setError(''); } catch (e) { setError(e instanceof Error ? e.message : 'Could not read image.'); } };
-  const draftArticle = (): Article => ({ id: editingDraft || `a-${Date.now()}`, title: title.trim() || 'Untitled draft', excerpt: excerpt.trim() || body.slice(0, 140), category: writeCategory, author: profile.name, date: shortDate(), read: `${Math.max(1, Math.ceil(body.split(/\s+/).length / 210))} min read`, image: image || '/assets/campus-study.jpg', body: `${body}${tags ? `\n\nTags: ${tags}` : ''}` });
-  const submit = (publish: boolean) => { if (!title.trim() || !body.trim()) { setError('Add an article title and some story text.'); return; } const article = draftArticle(); if (publish) { setItems((current) => [article, ...current.filter((item) => item.id !== editingDraft)]); setDrafts((current) => current.filter((item) => item.id !== editingDraft)); toast('Your story is published in Blogs & Stories.'); } else { setDrafts((current) => editingDraft ? current.map((item) => item.id === editingDraft ? article : item) : [article, ...current]); toast('Your draft is saved on this device.'); } reset(); };
-  const resumeDraft = (draft: Article) => { const [draftBody, draftTags = ''] = draft.body.split('\n\nTags: '); setTitle(draft.title === 'Untitled draft' ? '' : draft.title); setExcerpt(draft.excerpt); setBody(draftBody); setWriteCategory(draft.category); setTags(draftTags); setImage(draft.image.startsWith('/assets/') ? '' : draft.image); setEditingDraft(draft.id); setDraftsOpen(false); setOpen(true); };
-  const toggle = (id: string, values: string[], setValues: React.Dispatch<React.SetStateAction<string[]>>) => setValues(values.includes(id) ? values.filter((x) => x !== id) : [...values, id]);
-  if (id && selected) { const count = comments[id] || []; return <article className="article-reader page-content"><button className="back-link" onClick={() => navigate('/blogs')}><ArrowLeft size={15} /> All stories</button><div className="article-reading-progress" /><div className="article-reader-kicker"><Badge tone="teal">{selected.category}</Badge><span>·</span><span>{selected.read}</span><span>·</span><span>{selected.date}</span></div><h1>{selected.title}</h1><p className="article-reader-deck">{selected.excerpt}</p><div className="article-author-line"><Avatar name={selected.author} initials={selected.author.split(' ').map((x) => x[0]).join('')} size="sm" color="#eadcf3" /><div><b>{selected.author}</b><small>KyU Konnekt contributor</small></div><Button variant="secondary" onClick={() => toast(`Following ${selected.author}.`)}>Follow</Button></div><img className="article-cover-large" src={selected.image} alt={selected.title} /><div className="article-body-layout"><div className="article-social-rail"><button className={liked.includes(id) ? 'action-liked' : ''} onClick={() => toggle(id, liked, setLiked)}><Heart size={18} fill={liked.includes(id) ? 'currentColor' : 'none'} /><span>{liked.includes(id) ? 'You like this' : 'Like'}</span></button><button onClick={() => document.getElementById('article-comments')?.scrollIntoView({ behavior: 'smooth' })}><MessageCircle size={18} /><span>{count.length} comments</span></button><button className={saved.includes(id) ? 'action-saved' : ''} onClick={() => toggle(id, saved, setSaved)}><Bookmark size={18} fill={saved.includes(id) ? 'currentColor' : 'none'} /><span>Save</span></button><button onClick={() => toast('Article link copied.') }><Share2 size={18} /><span>Share</span></button></div><div className="article-body-text">{selected.body.split('\n\n').map((paragraph, i) => <p key={i}>{paragraph}</p>)}<blockquote>“The best ideas grow when we make room to learn from one another.”</blockquote><p>Stories from our community help make everyday knowledge visible. Keep sharing the work, lessons and questions that bring us together.</p><div className="article-tags">{selected.category} {tags.split(',').filter(Boolean).map((tag) => <Badge key={tag} tone="neutral">#{tag.trim()}</Badge>)}</div></div></div><section className="article-comments" id="article-comments"><SectionHeading title="Join the conversation" /><div className="comment-input-wrap article-comment-compose"><input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share a thoughtful response..." onKeyDown={(e) => { if (e.key === 'Enter' && comment.trim()) { setComments((prev) => ({ ...prev, [id]: [...(prev[id] || []), comment.trim()] })); setComment(''); } }} /><button onClick={() => { if (!comment.trim()) return; setComments((prev) => ({ ...prev, [id]: [...(prev[id] || []), comment.trim()] })); setComment(''); toast('Your comment was added.'); }} aria-label="Send comment"><Send size={15} /></button></div>{count.map((text, i) => <div className="article-comment-row" key={`${text}-${i}`}><Avatar name={profile.name} initials={profile.initials} color={profile.color} image={profile.image} size="sm" /><p><b>{profile.name}</b><br />{text}</p></div>)}</section></article>; }
-  return <div className="page-content section-page blogs-page"><div className="blogs-hero"><div><div className="page-kicker"><span className="kicker-icon kicker-blog"><BookOpen size={16} /></span><span>VOICES FROM OUR COMMUNITY</span></div><h1>Ideas worth <em>sharing.</em></h1><p>Stories, perspectives and lessons from people around KyU.</p><div className="blog-hero-actions"><Button onClick={() => setOpen(true)}><PenLine size={16} /> Write a story</Button><span><Sparkles size={14} /> Everyone has a story to tell</span></div></div><div className="blog-hero-image"><img src="/assets/campus-study.jpg" alt="Students sharing ideas on campus" /><span className="hero-image-caption">KYU COMMUNITY NOTES <span>·</span> VOL. 01</span></div></div>
-    <div className="blogs-toolbar"><div className="blogs-search"><Search size={15} /><input placeholder="Search stories and writers..." value={search} onChange={(e) => setSearch(e.target.value)} /></div><div className="category-pills blog-category-pills">{categories.slice(0, 5).map((item) => <button key={item} onClick={() => setCategory(item)} className={category === item ? 'category-pill-active' : ''}>{item}</button>)}<select aria-label="More story categories" value={category} onChange={(e) => setCategory(e.target.value)}><option value="All stories">More topics</option>{categories.slice(5).map((item) => <option key={item}>{item}</option>)}</select></div></div>
-    <div className="editorial-section-head"><SectionHeading title="Stories from KyU" action={<button className="editorial-view-link" onClick={() => setDraftsOpen(true)}>My drafts <span>{drafts.length}</span></button>} /><p>Made here. Shared with everyone.</p></div>{filtered.length ? <div className="article-grid">{filtered.map((article, index) => <article className={`article-card${index === 0 ? ' article-card-featured' : ''}`} key={article.id}><button className="article-card-image" onClick={() => navigate(`/article/${article.id}`)}><img src={article.image} alt={article.title} /><span className="article-image-category">{article.category}</span></button><div className="article-card-copy"><div className="article-card-meta"><span>{article.date}</span><span>·</span><span>{article.read}</span></div><button className="article-title-button" onClick={() => navigate(`/article/${article.id}`)}><h3>{article.title}</h3></button><p>{article.excerpt}</p><div className="article-card-footer"><span><Avatar name={article.author} initials={article.author.split(' ').map((x) => x[0]).join('')} size="sm" color="#eadcf3" /><b>{article.author}</b></span><button onClick={() => navigate(`/article/${article.id}`)}>Read story <ArrowUpRight size={14} /></button></div></div></article>)}</div> : <EmptyState title="No stories in this collection yet" detail="Try another category or write the first story." action={<Button onClick={() => setOpen(true)}><Plus size={15} /> Write a story</Button>} />}
-    <div className="editorial-callout"><div className="callout-orbit"><PenLine size={20} /></div><div><strong>Have a perspective to share?</strong><p>Publish a story for the KyU community. Your voice belongs here.</p></div><Button variant="secondary" onClick={() => setOpen(true)}>Start writing <ArrowUpRight size={15} /></Button></div>
-    {draftsOpen && <Modal title={`My drafts (${drafts.length})`} subtitle="Saved locally on this device. Resume a draft to continue editing." onClose={() => setDraftsOpen(false)} wide><div className="draft-list">{drafts.length ? drafts.map((draft) => <article className="draft-list-row" key={draft.id}><div><Badge tone="neutral">{draft.category}</Badge><h3>{draft.title}</h3><p>{draft.excerpt || 'No introduction added yet.'}</p><small>Last saved {draft.date}</small></div><div><Button variant="secondary" onClick={() => resumeDraft(draft)}>Resume draft</Button><button className="draft-delete" aria-label={`Delete ${draft.title}`} onClick={() => setDrafts((current) => current.filter((item) => item.id !== draft.id))}><Trash2 size={15} /></button></div></article>) : <EmptyState title="No saved drafts yet" detail="Start a story and save it to pick up later." action={<Button onClick={() => { setDraftsOpen(false); setOpen(true); }}>Write a story</Button>} />}</div></Modal>}
-    {open && <Modal title={preview ? 'Preview your story' : 'Write a community story'} subtitle={preview ? 'Here’s how your article will read.' : 'Draft something useful, honest and original.'} onClose={reset} wide>{preview ? <div className="draft-preview"><Badge tone="teal">{writeCategory}</Badge><h2>{title || 'Your story title'}</h2><p>{excerpt}</p>{image && <img src={image} alt="Story cover preview" />}<div>{body.split('\n').map((line, index) => <p key={index}>{line}</p>)}</div><div className="modal-actions"><Button variant="secondary" onClick={() => setPreview(false)}>Back to editor</Button><Button onClick={() => submit(true)}>Publish story</Button></div></div> : <div className="form-grid"><label className="form-field span-two"><span>Article title <i>*</i></span><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A clear, inviting title" /></label><label className="form-field"><span>Category</span><select value={writeCategory} onChange={(e) => setWriteCategory(e.target.value)}>{categories.slice(1).map((item) => <option key={item}>{item}</option>)}</select></label><label className="form-field"><span>Tags</span><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="campus, community, learning" /></label><label className="form-field span-two"><span>Short introduction</span><textarea rows={2} value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Give readers a reason to keep going." /></label><label className="form-field span-two"><span>Your story <i>*</i></span><div className="rich-editor-tools"><button onClick={() => setBody((v) => `${v}**bold text**`)}><b>B</b></button><button onClick={() => setBody((v) => `${v}\n- `)}>List</button><button onClick={() => setBody((v) => `${v}\n\n> `)}>Quote</button><span>Simple editor · use line breaks to create paragraphs</span></div><textarea className="rich-textarea" rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Start writing your story..." /></label><label className="form-field span-two"><span>Cover image</span><label className="file-drop"><Plus size={15} /> Add cover image<input type="file" accept="image/*" onChange={(e) => void pickImage(e.target.files?.[0])} hidden />{image && <img className="cover-mini-preview" src={image} alt="Cover preview" />}</label></label></div>}{error && <p className="form-error">{error}</p>}{!preview && <div className="modal-actions"><Button variant="secondary" onClick={() => setPreview(true)}>Preview</Button><Button variant="ghost" onClick={() => submit(false)}>Save draft</Button><Button onClick={() => submit(true)}>Publish story <ArrowUpRight size={14} /></Button></div>}</Modal>}
-  </div>;
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useOutletContext<SharedContext>();
+  const [profile] = useLocalStorageState<MemberProfile>('profile', defaultProfile);
+  const [items, setItems] = useState<Article[]>([]);
+  const [drafts, setDrafts] = useState<Article[]>([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [editingDraft, setEditingDraft] = useState('');
+  const [category, setCategory] = useState('All stories');
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [liked, setLiked] = useLocalStorageState<string[]>('article-liked', []);
+  const [saved, setSaved] = useLocalStorageState<string[]>('article-saved', []);
+  const [comment, setComment] = useState('');
+  const [comments, setComments] = useLocalStorageState<Record<string, string[]>>('article-comments', {});
+  const [title, setTitle] = useState('');
+  const [excerpt, setExcerpt] = useState('');
+  const [body, setBody] = useState('');
+  const [writeCategory, setWriteCategory] = useState('Campus Life');
+  const [tags, setTags] = useState('');
+  const [image, setImage] = useState('');
+  const [error, setError] = useState('');
+  const [selectedArticle, setSelectedArticle] = useState<any>(null);
+
+  // Fetch articles feed from API
+  useEffect(() => {
+    let ignore = false;
+    getArticlesApi({
+      category: category === 'All stories' ? undefined : category,
+      search: search || undefined,
+    }).then((res) => {
+      if (!ignore && res.data && Array.isArray(res.data)) {
+        setItems(res.data);
+      }
+    }).catch(() => {});
+
+    // Fetch user drafts
+    getArticleDraftsApi().then((res) => {
+      if (!ignore && res.data && Array.isArray(res.data)) {
+        setDrafts(res.data);
+      }
+    }).catch(() => {});
+
+    return () => { ignore = true; };
+  }, [category, search, setItems, setDrafts]);
+
+  // Fetch single article if on /article/:id
+  useEffect(() => {
+    if (!id) {
+      setSelectedArticle(null);
+      return;
+    }
+    let ignore = false;
+    getArticleByIdApi(id).then((res) => {
+      if (!ignore && res.data) {
+        setSelectedArticle(res.data);
+      }
+    }).catch(() => {});
+
+    return () => { ignore = true; };
+  }, [id]);
+
+  const selected = selectedArticle || items.find((item) => item.id === id);
+
+  const filtered = useMemo(() =>
+    items.filter((item) =>
+      (category === 'All stories' || item.category === category) &&
+      `${item.title} ${item.excerpt} ${item.author} ${item.category}`.toLowerCase().includes(search.toLowerCase())
+    ),
+    [items, category, search]
+  );
+
+  const reset = () => {
+    setOpen(false);
+    setPreview(false);
+    setEditingDraft('');
+    setTitle('');
+    setExcerpt('');
+    setBody('');
+    setImage('');
+    setTags('');
+    setError('');
+  };
+
+  const pickImage = async (file?: File) => {
+    if (!file) return;
+    try {
+      setImage(await readImagePreview(file));
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read image.');
+    }
+  };
+
+  const draftArticle = (): Article => ({
+    id: editingDraft || `a-${Date.now()}`,
+    title: title.trim() || 'Untitled draft',
+    excerpt: excerpt.trim() || body.slice(0, 140),
+    category: writeCategory,
+    author: profile.name,
+    date: shortDate(),
+    read: `${Math.max(1, Math.ceil(body.split(/\s+/).length / 210))} min read`,
+    image: image || '/assets/campus-study.jpg',
+    body: `${body}${tags ? `\n\nTags: ${tags}` : ''}`,
+  });
+
+  const submit = async (publish: boolean) => {
+    if (!title.trim() || !body.trim()) {
+      setError('Add an article title and some story text.');
+      return;
+    }
+    const article = draftArticle();
+    if (publish) {
+      setItems((current) => [article, ...current.filter((item) => item.id !== editingDraft)]);
+      setDrafts((current) => current.filter((item) => item.id !== editingDraft));
+      toast('Your story is published in Blogs & Stories.');
+    } else {
+      setDrafts((current) =>
+        editingDraft
+          ? current.map((item) => item.id === editingDraft ? article : item)
+          : [article, ...current]
+      );
+      toast('Your draft is saved.');
+    }
+    reset();
+
+    try {
+      await createArticleApi({
+        id: editingDraft || undefined,
+        title: title.trim(),
+        excerpt: excerpt.trim(),
+        body: body.trim(),
+        category: writeCategory,
+        tags: tags || undefined,
+        image: image || undefined,
+        publish,
+      });
+    } catch {
+      // Retained locally
+    }
+  };
+
+  const resumeDraft = (draft: Article) => {
+    const [draftBody, draftTags = ''] = draft.body.split('\n\nTags: ');
+    setTitle(draft.title === 'Untitled draft' ? '' : draft.title);
+    setExcerpt(draft.excerpt);
+    setBody(draftBody);
+    setWriteCategory(draft.category);
+    setTags(draftTags);
+    setImage(draft.image.startsWith('/assets/') ? '' : draft.image);
+    setEditingDraft(draft.id);
+    setDraftsOpen(false);
+    setOpen(true);
+  };
+
+  const handleDeleteDraft = async (draftId: string) => {
+    setDrafts((current) => current.filter((item) => item.id !== draftId));
+    try {
+      await deleteArticleDraftApi(draftId);
+    } catch {
+      // Handled
+    }
+  };
+
+  const handleToggleLike = async (artId: string) => {
+    const already = liked.includes(artId);
+    setLiked(already ? liked.filter((x) => x !== artId) : [...liked, artId]);
+    try {
+      await toggleArticleLikeApi(artId);
+    } catch {
+      // Retained locally
+    }
+  };
+
+  const handleToggleSave = (artId: string) => {
+    setSaved((prev) => prev.includes(artId) ? prev.filter((x) => x !== artId) : [...prev, artId]);
+  };
+
+  const handleAddComment = async (artId: string) => {
+    if (!comment.trim()) return;
+    const commentText = comment.trim();
+    setComments((prev) => ({ ...prev, [artId]: [...(prev[artId] || []), commentText] }));
+    setComment('');
+    toast('Your comment was added.');
+
+    try {
+      await addArticleCommentApi(artId, commentText);
+    } catch {
+      // Retained locally
+    }
+  };
+
+  if (id && selected) {
+    const count = comments[id] || [];
+    return (
+      <article className="article-reader page-content">
+        <button className="back-link" onClick={() => navigate('/blogs')}>
+          <ArrowLeft size={15} /> All stories
+        </button>
+        <div className="article-reading-progress" />
+        <div className="article-reader-kicker">
+          <Badge tone="teal">{selected.category}</Badge>
+          <span>·</span>
+          <span>{selected.read}</span>
+          <span>·</span>
+          <span>{selected.date}</span>
+        </div>
+        <h1>{selected.title}</h1>
+        <p className="article-reader-deck">{selected.excerpt}</p>
+        <div className="article-author-line">
+          <Avatar name={selected.author} initials={selected.author.split(' ').map((x: string) => x[0]).join('')} size="sm" color="#eadcf3" />
+          <div>
+            <b>{selected.author}</b>
+            <small>KyU Community contributor</small>
+          </div>
+          <Button variant="secondary" onClick={() => toast(`Following ${selected.author}.`)}>Follow</Button>
+        </div>
+        <img className="article-cover-large" src={selected.image} alt={selected.title} />
+        <div className="article-body-layout">
+          <div className="article-social-rail">
+            <button className={liked.includes(id) ? 'action-liked' : ''} onClick={() => handleToggleLike(id)}>
+              <Heart size={18} fill={liked.includes(id) ? 'currentColor' : 'none'} />
+              <span>{liked.includes(id) ? 'You like this' : 'Like'}</span>
+            </button>
+            <button onClick={() => document.getElementById('article-comments')?.scrollIntoView({ behavior: 'smooth' })}>
+              <MessageCircle size={18} />
+              <span>{count.length} comments</span>
+            </button>
+            <button className={saved.includes(id) ? 'action-saved' : ''} onClick={() => handleToggleSave(id)}>
+              <Bookmark size={18} fill={saved.includes(id) ? 'currentColor' : 'none'} />
+              <span>Save</span>
+            </button>
+            <button onClick={() => toast('Article link copied.')}>
+              <Share2 size={18} />
+              <span>Share</span>
+            </button>
+          </div>
+          <div className="article-body-text">
+            {selected.body.split('\n\n').map((paragraph: string, i: number) => (
+              <p key={i}>{paragraph}</p>
+            ))}
+            <blockquote>“The best ideas grow when we make room to learn from one another.”</blockquote>
+            <p>Stories from our community help make everyday knowledge visible. Keep sharing the work, lessons and questions that bring us together.</p>
+            <div className="article-tags">
+              {selected.category} {tags.split(',').filter(Boolean).map((tag) => <Badge key={tag} tone="neutral">#{tag.trim()}</Badge>)}
+            </div>
+          </div>
+        </div>
+        <section className="article-comments" id="article-comments">
+          <SectionHeading title="Join the conversation" />
+          <div className="comment-input-wrap article-comment-compose">
+            <input
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Share a thoughtful response..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddComment(id);
+              }}
+            />
+            <button onClick={() => handleAddComment(id)} aria-label="Send comment">
+              <Send size={15} />
+            </button>
+          </div>
+          {count.map((text, i) => (
+            <div className="article-comment-row" key={`${text}-${i}`}>
+              <Avatar name={profile.name} initials={profile.initials} color={profile.color} image={profile.image} size="sm" />
+              <p><b>{profile.name}</b><br />{text}</p>
+            </div>
+          ))}
+        </section>
+      </article>
+    );
+  }
+
+  return (
+    <div className="page-content section-page blogs-page">
+      <div className="blogs-hero">
+        <div>
+          <div className="page-kicker"><span className="kicker-icon kicker-blog"><BookOpen size={16} /></span><span>VOICES FROM OUR COMMUNITY</span></div>
+          <h1>Ideas worth <em>sharing.</em></h1>
+          <p>Stories, perspectives and lessons from people around KyU.</p>
+          <div className="blog-hero-actions">
+            <Button onClick={() => setOpen(true)}><PenLine size={16} /> Write a story</Button>
+            <span><Sparkles size={14} /> Everyone has a story to tell</span>
+          </div>
+        </div>
+        <div className="blog-hero-image">
+          <img src="/assets/campus-study.jpg" alt="Students sharing ideas on campus" />
+          <span className="hero-image-caption">KYU COMMUNITY NOTES <span>·</span> VOL. 01</span>
+        </div>
+      </div>
+
+      <div className="blogs-toolbar">
+        <div className="blogs-search">
+          <Search size={15} />
+          <input placeholder="Search stories and writers..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="category-pills blog-category-pills">
+          {categories.slice(0, 5).map((item) => (
+            <button key={item} onClick={() => setCategory(item)} className={category === item ? 'category-pill-active' : ''}>
+              {item}
+            </button>
+          ))}
+          <select aria-label="More story categories" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="All stories">More topics</option>
+            {categories.slice(5).map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="editorial-section-head">
+        <SectionHeading title="Stories from KyU" action={<button className="editorial-view-link" onClick={() => setDraftsOpen(true)}>My drafts <span>{drafts.length}</span></button>} />
+        <p>Made here. Shared with everyone.</p>
+      </div>
+
+      {filtered.length ? (
+        <div className="article-grid">
+          {filtered.map((article, index) => (
+            <article className={`article-card${index === 0 ? ' article-card-featured' : ''}`} key={article.id}>
+              <button className="article-card-image" onClick={() => navigate(`/article/${article.id}`)}>
+                <img src={article.image} alt={article.title} />
+                <span className="article-image-category">{article.category}</span>
+              </button>
+              <div className="article-card-copy">
+                <div className="article-card-meta"><span>{article.date}</span><span>·</span><span>{article.read}</span></div>
+                <button className="article-title-button" onClick={() => navigate(`/article/${article.id}`)}>
+                  <h3>{article.title}</h3>
+                </button>
+                <p>{article.excerpt}</p>
+                <div className="article-card-footer">
+                  <span>
+                    <Avatar name={article.author} initials={article.author.split(' ').map((x) => x[0]).join('')} size="sm" color="#eadcf3" />
+                    <b>{article.author}</b>
+                  </span>
+                  <button onClick={() => navigate(`/article/${article.id}`)}>Read story <ArrowUpRight size={14} /></button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No stories in this collection yet" detail="Try another category or write the first story." action={<Button onClick={() => setOpen(true)}><Plus size={15} /> Write a story</Button>} />
+      )}
+
+      <div className="editorial-callout">
+        <div className="callout-orbit"><PenLine size={20} /></div>
+        <div>
+          <strong>Have a perspective to share?</strong>
+          <p>Publish a story for the KyU community. Your voice belongs here.</p>
+        </div>
+        <Button variant="secondary" onClick={() => setOpen(true)}>Start writing <ArrowUpRight size={15} /></Button>
+      </div>
+
+      {draftsOpen && (
+        <Modal title={`My drafts (${drafts.length})`} subtitle="Saved drafts. Resume a draft to continue editing." onClose={() => setDraftsOpen(false)} wide>
+          <div className="draft-list">
+            {drafts.length ? (
+              drafts.map((draft) => (
+                <article className="draft-list-row" key={draft.id}>
+                  <div>
+                    <Badge tone="neutral">{draft.category}</Badge>
+                    <h3>{draft.title}</h3>
+                    <p>{draft.excerpt || 'No introduction added yet.'}</p>
+                    <small>Last saved {draft.date}</small>
+                  </div>
+                  <div>
+                    <Button variant="secondary" onClick={() => resumeDraft(draft)}>Resume draft</Button>
+                    <button className="draft-delete" aria-label={`Delete ${draft.title}`} onClick={() => handleDeleteDraft(draft.id)}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No saved drafts yet" detail="Start a story and save it to pick up later." action={<Button onClick={() => { setDraftsOpen(false); setOpen(true); }}>Write a story</Button>} />
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {open && (
+        <Modal title={preview ? 'Preview your story' : 'Write a community story'} subtitle={preview ? 'Here’s how your article will read.' : 'Draft something useful, honest and original.'} onClose={reset} wide>
+          {preview ? (
+            <div className="draft-preview">
+              <Badge tone="teal">{writeCategory}</Badge>
+              <h2>{title || 'Your story title'}</h2>
+              <p>{excerpt}</p>
+              {image && <img src={image} alt="Story cover preview" />}
+              <div>{body.split('\n').map((line, index) => <p key={index}>{line}</p>)}</div>
+              <div className="modal-actions">
+                <Button variant="secondary" onClick={() => setPreview(false)}>Back to editor</Button>
+                <Button onClick={() => submit(true)}>Publish story</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="form-grid">
+              <label className="form-field span-two">
+                <span>Article title <i>*</i></span>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A clear, inviting title" />
+              </label>
+              <label className="form-field">
+                <span>Category</span>
+                <select value={writeCategory} onChange={(e) => setWriteCategory(e.target.value)}>
+                  {categories.slice(1).map((item) => <option key={item}>{item}</option>)}
+                </select>
+              </label>
+              <label className="form-field">
+                <span>Tags</span>
+                <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="campus, community, learning" />
+              </label>
+              <label className="form-field span-two">
+                <span>Short introduction</span>
+                <textarea rows={2} value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="Give readers a reason to keep going." />
+              </label>
+              <label className="form-field span-two">
+                <span>Your story <i>*</i></span>
+                <div className="rich-editor-tools">
+                  <button onClick={() => setBody((v) => `${v}**bold text**`)}><b>B</b></button>
+                  <button onClick={() => setBody((v) => `${v}\n- `)}>List</button>
+                  <button onClick={() => setBody((v) => `${v}\n\n> `)}>Quote</button>
+                  <span>Simple editor · use line breaks to create paragraphs</span>
+                </div>
+                <textarea className="rich-textarea" rows={8} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Start writing your story..." />
+              </label>
+              <label className="form-field span-two">
+                <span>Cover image</span>
+                <label className="file-drop">
+                  <Plus size={15} /> Add cover image
+                  <input type="file" accept="image/*" onChange={(e) => void pickImage(e.target.files?.[0])} hidden />
+                </label>
+                {image && <img className="cover-mini-preview" src={image} alt="Cover preview" />}
+              </label>
+            </div>
+          )}
+          {error && <p className="form-error">{error}</p>}
+          {!preview && (
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setPreview(true)}>Preview</Button>
+              <Button variant="ghost" onClick={() => submit(false)}>Save draft</Button>
+              <Button onClick={() => submit(true)}>Publish story <ArrowUpRight size={14} /></Button>
+            </div>
+          )}
+        </Modal>
+      )}
+    </div>
+  );
 }

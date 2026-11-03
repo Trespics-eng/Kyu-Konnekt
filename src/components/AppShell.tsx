@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import type { Post, MemberProfile } from '../data/mockData';
-import { initialPosts, me } from '../data/mockData';
+import { defaultProfile } from '../data/mockData';
 import { useLocalStorageState } from '../lib/storage';
+import { getMeApi, getPostsApi } from '../lib/api';
 import { Toast } from './ui';
 import Topbar from './Topbar';
 import LeftSidebar from './LeftSidebar';
@@ -41,13 +42,71 @@ const navItems = [
 
 export default function AppShell() {
   const location = useLocation();
-  const [profile] = useLocalStorageState<MemberProfile>('profile', me);
-  const [posts, setPosts] = useLocalStorageState<Post[]>('posts', initialPosts);
+  const [profile, setProfile] = useLocalStorageState<MemberProfile>('profile', defaultProfile);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [liked, setLiked] = useLocalStorageState<string[]>('liked', []);
   const [saved, setSaved] = useLocalStorageState<string[]>('saved', []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Fetch authenticated user profile on mount
+  useEffect(() => {
+    const token = localStorage.getItem('kyu:auth_token');
+    if (!token) return;
+    getMeApi()
+      .then((res) => {
+        if (res.data) {
+          const u = res.data;
+          setProfile((prev) => ({
+            ...prev,
+            id: u.id || prev.id,
+            name: u.name || prev.name,
+            email: u.email || prev.email,
+            role: u.role || prev.role,
+            initials: u.initials || u.name?.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase() || prev.initials,
+            color: u.color || prev.color,
+            image: u.avatar_url || prev.image,
+            bio: u.bio || prev.bio,
+            verified: u.verified ?? prev.verified,
+            category: u.category || prev.category,
+            school: u.school || prev.school,
+            course: u.course || prev.course,
+            year: u.year || prev.year,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [setProfile]);
+
+  // Fetch initial posts on mount
+  useEffect(() => {
+    getPostsApi()
+      .then((res) => {
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setPosts(res.data.map((p: any) => ({
+            id: p.id,
+            author: p.author || profile,
+            createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Just now',
+            category: p.category || 'Campus Life',
+            type: p.type || 'Discussion',
+            body: p.body,
+            image: p.media_url || p.image,
+            mediaType: p.media_type || p.mediaType,
+            likes: p.like_count ?? p.likes ?? 0,
+            comments: (p.comments || []).map((c: any) => ({
+              id: c.id,
+              author: c.author?.name || c.author || 'User',
+              initials: c.author?.initials || 'U',
+              text: c.body || c.text || '',
+              time: c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now',
+            })),
+          })));
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const title = navItems.find((item) => item.path === location.pathname)?.label || (location.pathname.startsWith('/business/') ? 'Business' : location.pathname.startsWith('/article/') ? 'Article' : 'Your community');
   const toast = (message: string) => { setToastMessage(message); window.setTimeout(() => setToastMessage(''), 3200); };

@@ -1,47 +1,410 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { ArrowUpRight, Bookmark, Check, ChevronDown, Heart, ImagePlus, MessageCircle, MoreHorizontal, Send, Share2, Sparkles, ThumbsUp, UsersRound, ShieldCheck, X } from 'lucide-react';
 import type { Category, Comment, MemberProfile, Post } from '../data/mockData';
 import type { SharedContext } from '../components/AppShell';
 import { Avatar, Badge, Button } from '../components/ui';
+import {
+  getPostsApi,
+  createPostApi,
+  togglePostReactionApi,
+  togglePostBookmarkApi,
+  addPostCommentApi,
+  reportContentApi,
+} from '../lib/api';
 import './HomePage.css';
 
 const filters = ['All Posts', 'Latest', 'Popular', 'Campus Life', 'Academics', 'Community Issues', 'Business', 'Opportunities', 'Events', 'Blogs'];
-const toneByCategory: Record<Category, 'blue' | 'teal' | 'amber' | 'neutral' | 'green'> = { 'Campus Life': 'blue', Academics: 'teal', 'Community Issues': 'amber', Business: 'green', Opportunities: 'blue', Events: 'teal', Blogs: 'neutral' };
+const toneByCategory: Record<Category, 'blue' | 'teal' | 'amber' | 'neutral' | 'green'> = {
+  'Campus Life': 'blue',
+  Academics: 'teal',
+  'Community Issues': 'amber',
+  Business: 'green',
+  Opportunities: 'blue',
+  Events: 'teal',
+  Blogs: 'neutral',
+};
 
-function PostCard({ post, profile, liked, saved, onLike, onSave, onComment, onShare, onReport }: { post: Post; profile: MemberProfile; liked: boolean; saved: boolean; onLike: () => void; onSave: () => void; onComment: (text: string) => void; onShare: () => void; onReport: () => void }) {
+function PostCard({
+  post,
+  profile,
+  liked,
+  saved,
+  onLike,
+  onSave,
+  onComment,
+  onShare,
+  onReport,
+}: {
+  post: Post;
+  profile: MemberProfile;
+  liked: boolean;
+  saved: boolean;
+  onLike: () => void;
+  onSave: () => void;
+  onComment: (text: string) => void;
+  onShare: () => void;
+  onReport: () => void;
+}) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const submitComment = () => { if (!commentText.trim()) return; onComment(commentText.trim()); setCommentText(''); setCommentsOpen(true); };
-  return <article className="post-card">
-    <div className="post-head"><Avatar name={post.author.name} initials={post.author.initials} color={post.author.color} verified={post.author.verified} /><div className="post-author"><div className="author-line"><b>{post.author.name}</b>{post.author.verified && <span className="verified-label"><ShieldCheck size={12} /> Verified</span>}<span className="post-dot">·</span><span className="author-role">{post.author.role.split('·')[0].trim()}</span></div><div className="post-meta"><span>{post.createdAt}</span><span>·</span><span>{post.author.role}</span></div></div><div className="post-head-right"><Badge tone={toneByCategory[post.category]}>{post.category}</Badge><div className="post-menu-wrap"><button className="icon-button" aria-label="Post options" onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal size={19} /></button>{menuOpen && <div className="post-menu"><button onClick={() => { onReport(); setMenuOpen(false); }}>Report post</button><button onClick={() => { onShare(); setMenuOpen(false); }}>Copy share link</button></div>}</div></div></div>
-    <div className="post-content"><p className={expanded ? '' : 'post-text-clamp'}>{post.body}</p>{post.body.length > 230 && <button className="read-more" onClick={() => setExpanded(!expanded)}>{expanded ? 'Show less' : 'Read more'}</button>}</div>
-    {post.image && (post.mediaType === 'video' ? <video className="post-image post-video" src={post.image} controls aria-label="Community post video" /> : <button className="post-image-button" onClick={() => setExpanded(true)} aria-label="View attached image"><img className="post-image" src={post.image} alt="KyU campus community" /></button>)}
-    <div className="post-stats"><span><span className="reaction-bubbles"><Heart size={11} fill="currentColor" /><ThumbsUp size={11} fill="currentColor" /></span>{post.likes + (liked ? 1 : 0)} people</span><button onClick={() => setCommentsOpen(!commentsOpen)}>{post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}</button></div>
-    <div className="post-actions"><button className={liked ? 'action-liked' : ''} onClick={onLike}><Heart size={17} fill={liked ? 'currentColor' : 'none'} /> Like</button><button onClick={() => setCommentsOpen(!commentsOpen)}><MessageCircle size={17} /> Comment</button><button onClick={onShare}><Share2 size={16} /> Share</button><button className={`action-save${saved ? ' action-saved' : ''}`} aria-label={saved ? 'Remove bookmark' : 'Save post'} onClick={onSave}><Bookmark size={16} fill={saved ? 'currentColor' : 'none'} /><span>{saved ? 'Saved' : 'Save'}</span></button></div>
-    {commentsOpen && <div className="comments-panel"><div className="comments-title"><b>Community conversation</b><button onClick={() => setCommentsOpen(false)} aria-label="Close comments"><X size={14} /></button></div>{post.comments.map((comment: Comment) => <div className="comment-row" key={comment.id}><Avatar name={comment.author} initials={comment.initials} size="sm" /><div className="comment-bubble"><div><b>{comment.author}</b><small>{comment.time}</small></div><p>{comment.text}</p><button className="reply-link" onClick={() => setCommentText(`@${comment.author} `)}>Reply</button></div></div>)}<div className="comment-compose"><Avatar name={profile.name} initials={profile.initials} color={profile.color} image={profile.image} size="sm" /><div className="comment-input-wrap"><input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Write a thoughtful comment..." onKeyDown={(event) => event.key === 'Enter' && submitComment()} /><button onClick={submitComment} aria-label="Send comment"><Send size={15} /></button></div></div></div>}
-  </article>;
+
+  const submitComment = () => {
+    if (!commentText.trim()) return;
+    onComment(commentText.trim());
+    setCommentText('');
+    setCommentsOpen(true);
+  };
+
+  return (
+    <article className="post-card">
+      <div className="post-head">
+        <Avatar name={post.author.name} initials={post.author.initials} color={post.author.color} verified={post.author.verified} />
+        <div className="post-author">
+          <div className="author-line">
+            <b>{post.author.name}</b>
+            {post.author.verified && <span className="verified-label"><ShieldCheck size={12} /> Verified</span>}
+            <span className="post-dot">·</span>
+            <span className="author-role">{post.author.role.split('·')[0].trim()}</span>
+          </div>
+          <div className="post-meta">
+            <span>{post.createdAt}</span>
+            <span>·</span>
+            <span>{post.author.role}</span>
+          </div>
+        </div>
+        <div className="post-head-right">
+          <Badge tone={toneByCategory[post.category]}>{post.category}</Badge>
+          <div className="post-menu-wrap">
+            <button className="icon-button" aria-label="Post options" onClick={() => setMenuOpen(!menuOpen)}>
+              <MoreHorizontal size={19} />
+            </button>
+            {menuOpen && (
+              <div className="post-menu">
+                <button onClick={() => { onReport(); setMenuOpen(false); }}>Report post</button>
+                <button onClick={() => { onShare(); setMenuOpen(false); }}>Copy share link</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="post-content">
+        <p className={expanded ? '' : 'post-text-clamp'}>{post.body}</p>
+        {post.body.length > 230 && (
+          <button className="read-more" onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+      </div>
+
+      {post.image && (
+        post.mediaType === 'video' ? (
+          <video className="post-image post-video" src={post.image} controls aria-label="Community post video" />
+        ) : (
+          <button className="post-image-button" onClick={() => setExpanded(true)} aria-label="View attached image">
+            <img className="post-image" src={post.image} alt="KyU campus community" />
+          </button>
+        )
+      )}
+
+      <div className="post-stats">
+        <span>
+          <span className="reaction-bubbles"><Heart size={11} fill="currentColor" /><ThumbsUp size={11} fill="currentColor" /></span>
+          {post.likes + (liked ? 1 : 0)} people
+        </span>
+        <button onClick={() => setCommentsOpen(!commentsOpen)}>
+          {post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}
+        </button>
+      </div>
+
+      <div className="post-actions">
+        <button className={liked ? 'action-liked' : ''} onClick={onLike}>
+          <Heart size={17} fill={liked ? 'currentColor' : 'none'} /> Like
+        </button>
+        <button onClick={() => setCommentsOpen(!commentsOpen)}>
+          <MessageCircle size={17} /> Comment
+        </button>
+        <button onClick={onShare}>
+          <Share2 size={16} /> Share
+        </button>
+        <button className={`action-save${saved ? ' action-saved' : ''}`} aria-label={saved ? 'Remove bookmark' : 'Save post'} onClick={onSave}>
+          <Bookmark size={16} fill={saved ? 'currentColor' : 'none'} />
+          <span>{saved ? 'Saved' : 'Save'}</span>
+        </button>
+      </div>
+
+      {commentsOpen && (
+        <div className="comments-panel">
+          <div className="comments-title">
+            <b>Community conversation</b>
+            <button onClick={() => setCommentsOpen(false)} aria-label="Close comments"><X size={14} /></button>
+          </div>
+          {post.comments.map((comment: Comment) => (
+            <div className="comment-row" key={comment.id}>
+              <Avatar name={comment.author} initials={comment.initials} size="sm" />
+              <div className="comment-bubble">
+                <div><b>{comment.author}</b><small>{comment.time}</small></div>
+                <p>{comment.text}</p>
+                <button className="reply-link" onClick={() => setCommentText(`@${comment.author} `)}>Reply</button>
+              </div>
+            </div>
+          ))}
+          <div className="comment-compose">
+            <Avatar name={profile.name} initials={profile.initials} color={profile.color} image={profile.image} size="sm" />
+            <div className="comment-input-wrap">
+              <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Write a thoughtful comment..." onKeyDown={(event) => event.key === 'Enter' && submitComment()} />
+              <button onClick={submitComment} aria-label="Send comment"><Send size={15} /></button>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
 }
 
 export default function HomePage() {
   const { profile, posts, setPosts, liked, setLiked, saved, setSaved, openComposer, toast } = useOutletContext<SharedContext>();
   const [activeFilter, setActiveFilter] = useState('All Posts');
   const [quickText, setQuickText] = useState('');
+
+  // Fetch posts from API when category or sort changes
+  useEffect(() => {
+    let ignore = false;
+    getPostsApi({
+      category: activeFilter === 'All Posts' || activeFilter === 'Latest' || activeFilter === 'Popular' ? undefined : activeFilter,
+      sort: activeFilter === 'Popular' ? 'popular' : undefined,
+    }).then((res) => {
+      if (!ignore && res.data && Array.isArray(res.data) && res.data.length > 0) {
+        setPosts(res.data.map((p: any) => ({
+          id: p.id,
+          author: p.author || profile,
+          createdAt: p.createdAt ? new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+          category: p.category || 'Campus Life',
+          type: p.type || 'Discussion',
+          body: p.body,
+          image: p.image,
+          mediaType: p.mediaType,
+          likes: p.likes || 0,
+          comments: (p.comments || []).map((c: any) => ({
+            id: c.id,
+            author: c.author?.name || c.author || 'User',
+            initials: c.author?.initials || 'U',
+            text: c.body || c.text || '',
+            time: c.created_at ? new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now',
+          })),
+        })));
+      }
+    }).catch(() => {
+      // Backend gracefully falls back to existing posts
+    });
+
+    return () => { ignore = true; };
+  }, [activeFilter, setPosts, profile]);
+
   const visiblePosts = useMemo(() => {
     const filtered = posts.filter((post) => activeFilter === 'All Posts' || activeFilter === 'Latest' || activeFilter === 'Popular' || post.category === activeFilter);
-    return activeFilter === 'Popular' ? [...filtered].sort((a, b) => b.likes - a.likes) : activeFilter === 'Latest' ? filtered : filtered;
+    return activeFilter === 'Popular' ? [...filtered].sort((a, b) => b.likes - a.likes) : filtered;
   }, [posts, activeFilter]);
-  const addQuickPost = () => { if (!quickText.trim()) { openComposer(); return; } const post: Post = { id: `p-${Date.now()}`, author: profile, createdAt: 'Just now', category: 'Campus Life', type: 'Text', body: quickText.trim(), likes: 0, comments: [] }; setPosts((current) => [post, ...current]); setQuickText(''); toast('Your post is now in the KyU community feed.'); };
-  const toggleId = (id: string, list: string[], setter: React.Dispatch<React.SetStateAction<string[]>>, activeMessage: string, inactiveMessage: string) => { const next = list.includes(id) ? list.filter((item) => item !== id) : [...list, id]; setter(next); toast(list.includes(id) ? inactiveMessage : activeMessage); };
-  const comment = (postId: string, text: string) => setPosts((current) => current.map((post) => post.id === postId ? { ...post, comments: [...post.comments, { id: `c-${Date.now()}`, author: profile.name, initials: profile.initials, text, time: 'Just now' }] } : post));
-  const share = async (post: Post) => { try { await navigator.clipboard.writeText(`${window.location.origin}/#post-${post.id}`); toast('Post link copied. Share it with your community.'); } catch { toast('Share link ready: KyU Konnekt community post.'); } };
-  return <div className="page-content feed-page">
-    <div className="feed-welcome"><div><div className="eyebrow"><span className="eyebrow-dot" /> MONDAY, NOVEMBER 2, 2026</div><h1>Your community, <em>connected.</em></h1><p>A good place to start is with what’s happening around you.</p></div><div className="community-online"><span className="online-stack"><Avatar name="James" initials="JM" color="#f3dfca" size="sm" /><Avatar name="Faith" initials="FN" color="#eadcf3" size="sm" /><Avatar name="Brian" initials="BG" color="#e1e8f7" size="sm" /></span><span><b>1,204</b> community members</span></div></div>
-    <div className="composer-card"><div className="composer-top"><Avatar name={profile.name} initials={profile.initials} color={profile.color} image={profile.image} verified /><button className="composer-prompt" onClick={openComposer}>What’s happening in the KyU community?</button></div><div className="composer-inline"><input value={quickText} onChange={(event) => setQuickText(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && addQuickPost()} placeholder="Share an update with your community..." /><button className="inline-post-button" onClick={addQuickPost}>Post <ArrowUpRight size={15} /></button></div><div className="composer-shortcuts"><button onClick={openComposer}><ImagePlus size={16} className="shortcut-photo" /> Photo or video</button><button onClick={openComposer}><MessageCircle size={16} className="shortcut-question" /> Ask a question</button><button onClick={() => { openComposer(); }}><Sparkles size={16} className="shortcut-event" /> Share an idea</button><button className="composer-community"><UsersRound size={14} /> Community <ChevronDown size={13} /></button></div></div>
-    <div className="feed-filter-shell"><div className="feed-filter-list">{filters.map((filter) => <button key={filter} className={`feed-filter${activeFilter === filter ? ' feed-filter-active' : ''}`} onClick={() => setActiveFilter(filter)}>{filter}</button>)}</div><button className="filter-more" aria-label="More filters" onClick={() => toast('More feed filters are coming soon.')}><ChevronDown size={14} /></button></div>
-    <div className="feed-stream"><div className="stream-title"><span><strong>{activeFilter === 'All Posts' ? 'Community feed' : activeFilter}</strong><small>Thoughts, questions and updates from KyU</small></span><button className="stream-sort" onClick={() => setActiveFilter(activeFilter === 'Latest' ? 'All Posts' : 'Latest')}>{activeFilter === 'Latest' ? 'Latest' : 'For you'} <ChevronDown size={14} /></button></div>{visiblePosts.length ? visiblePosts.map((post) => <PostCard key={post.id} post={post} profile={profile} liked={liked.includes(post.id)} saved={saved.includes(post.id)} onLike={() => toggleId(post.id, liked, setLiked, 'Added your reaction.', 'Removed your reaction.')} onSave={() => toggleId(post.id, saved, setSaved, 'Saved to your posts.', 'Removed from saved posts.')} onComment={(text) => comment(post.id, text)} onShare={() => void share(post)} onReport={() => toast('Thanks for looking out for the community. This post was flagged for review.')} />) : <div className="empty-feed"><Sparkles size={22} /><strong>No posts in this category yet</strong><span>Be the first to get the conversation started.</span><Button onClick={openComposer}>Create a post</Button></div>}</div>
-    <div className="feed-end-note"><span><Check size={14} /></span>You’re all caught up. Keep the conversation going.</div>
-  </div>;
+
+  const addQuickPost = async () => {
+    if (!quickText.trim()) {
+      openComposer();
+      return;
+    }
+
+    const newBody = quickText.trim();
+    setQuickText('');
+
+    // Optimistic UI update
+    const optimisticPost: Post = {
+      id: `p-${Date.now()}`,
+      author: profile,
+      createdAt: 'Just now',
+      category: 'Campus Life',
+      type: 'Text',
+      body: newBody,
+      likes: 0,
+      comments: [],
+    };
+    setPosts((current) => [optimisticPost, ...current]);
+    toast('Your post is now in the KyU community feed.');
+
+    try {
+      const res = await createPostApi({
+        body: newBody,
+        category: 'Campus Life',
+        type: 'Text',
+      });
+      if (res.data?.id) {
+        setPosts((current) => current.map((p) => p.id === optimisticPost.id ? { ...p, id: res.data.id } : p));
+      }
+    } catch {
+      // Retained in local feed
+    }
+  };
+
+  const handleLike = async (postId: string) => {
+    const already = liked.includes(postId);
+    const next = already ? liked.filter((id) => id !== postId) : [...liked, postId];
+    setLiked(next);
+    toast(already ? 'Removed your reaction.' : 'Added your reaction.');
+
+    try {
+      await togglePostReactionApi(postId);
+    } catch {
+      // Local state preserved
+    }
+  };
+
+  const handleSave = async (postId: string) => {
+    const already = saved.includes(postId);
+    const next = already ? saved.filter((id) => id !== postId) : [...saved, postId];
+    setSaved(next);
+    toast(already ? 'Removed from saved posts.' : 'Saved to your posts.');
+
+    try {
+      await togglePostBookmarkApi(postId);
+    } catch {
+      // Local state preserved
+    }
+  };
+
+  const handleComment = async (postId: string, text: string) => {
+    const optimisticComment = {
+      id: `c-${Date.now()}`,
+      author: profile.name,
+      initials: profile.initials,
+      text,
+      time: 'Just now',
+    };
+
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === postId
+          ? { ...post, comments: [...post.comments, optimisticComment] }
+          : post
+      )
+    );
+
+    try {
+      await addPostCommentApi(postId, text);
+    } catch {
+      // Preserved locally
+    }
+  };
+
+  const handleReport = async (postId: string) => {
+    toast('Thanks for looking out for the community. This post was flagged for review.');
+    try {
+      await reportContentApi({ target_type: 'post', target_id: postId, reason: 'Reported by user in feed' });
+    } catch {
+      // Ignored
+    }
+  };
+
+  const share = async (post: Post) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/#post-${post.id}`);
+      toast('Post link copied. Share it with your community.');
+    } catch {
+      toast('Share link ready: KyU Community post.');
+    }
+  };
+
+  return (
+    <div className="page-content feed-page">
+      <div className="feed-welcome">
+        <div>
+          <div className="eyebrow"><span className="eyebrow-dot" /> {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}</div>
+          <h1>Your community, <em>connected.</em></h1>
+          <p>A good place to start is with what’s happening around you.</p>
+        </div>
+      </div>
+
+      <div className="composer-card">
+        <div className="composer-top">
+          <Avatar name={profile.name} initials={profile.initials} color={profile.color} image={profile.image} verified />
+          <button className="composer-prompt" onClick={openComposer}>What’s happening in the KyU community?</button>
+        </div>
+        <div className="composer-inline">
+          <input
+            value={quickText}
+            onChange={(event) => setQuickText(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && addQuickPost()}
+            placeholder="Share an update with your community..."
+          />
+          <button className="inline-post-button" onClick={addQuickPost}>
+            Post <ArrowUpRight size={15} />
+          </button>
+        </div>
+        <div className="composer-shortcuts">
+          <button onClick={openComposer}><ImagePlus size={16} className="shortcut-photo" /> Photo or video</button>
+          <button onClick={openComposer}><MessageCircle size={16} className="shortcut-question" /> Ask a question</button>
+          <button onClick={openComposer}><Sparkles size={16} className="shortcut-event" /> Share an idea</button>
+          <button className="composer-community"><UsersRound size={14} /> Community <ChevronDown size={13} /></button>
+        </div>
+      </div>
+
+      <div className="feed-filter-shell">
+        <div className="feed-filter-list">
+          {filters.map((filter) => (
+            <button
+              key={filter}
+              className={`feed-filter${activeFilter === filter ? ' feed-filter-active' : ''}`}
+              onClick={() => setActiveFilter(filter)}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        <button className="filter-more" aria-label="More filters" onClick={() => toast('More feed filters are coming soon.')}>
+          <ChevronDown size={14} />
+        </button>
+      </div>
+
+      <div className="feed-stream">
+        <div className="stream-title">
+          <span>
+            <strong>{activeFilter === 'All Posts' ? 'Community feed' : activeFilter}</strong>
+            <small>Thoughts, questions and updates from KyU</small>
+          </span>
+          <button className="stream-sort" onClick={() => setActiveFilter(activeFilter === 'Latest' ? 'All Posts' : 'Latest')}>
+            {activeFilter === 'Latest' ? 'Latest' : 'For you'} <ChevronDown size={14} />
+          </button>
+        </div>
+
+        {visiblePosts.length ? (
+          visiblePosts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              profile={profile}
+              liked={liked.includes(post.id)}
+              saved={saved.includes(post.id)}
+              onLike={() => handleLike(post.id)}
+              onSave={() => handleSave(post.id)}
+              onComment={(text) => handleComment(post.id, text)}
+              onShare={() => void share(post)}
+              onReport={() => handleReport(post.id)}
+            />
+          ))
+        ) : (
+          <div className="empty-feed">
+            <Sparkles size={22} />
+            <strong>No posts in this category yet</strong>
+            <span>Be the first to get the conversation started.</span>
+            <Button onClick={openComposer}>Create a post</Button>
+          </div>
+        )}
+      </div>
+
+      <div className="feed-end-note">
+        <span><Check size={14} /></span>
+        You’re all caught up. Keep the conversation going.
+      </div>
+    </div>
+  );
 }

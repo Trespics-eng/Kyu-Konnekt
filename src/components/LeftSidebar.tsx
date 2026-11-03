@@ -35,7 +35,7 @@ export default function LeftSidebar({ sidebarOpen, setSidebarOpen, openComposer,
       <div className="mobile-sidebar-header">
         <Link className="brand-lockup" to="/" onClick={() => setSidebarOpen(false)}>
           <BrandMark small />
-          <span className="brand-copy"><strong>KyU Konnekt</strong><small>Your campus, connected</small></span>
+          <span className="brand-copy"><strong>KyU Community</strong><small>Your campus, connected</small></span>
         </Link>
         <button className="icon-button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><X size={18} /></button>
       </div>
@@ -49,7 +49,7 @@ export default function LeftSidebar({ sidebarOpen, setSidebarOpen, openComposer,
       <Link to="/academics" className="community-shortcut"><span className="shortcut-dot shortcut-gold">R</span><span>Research Circle</span></Link>
       <Link to="/academics" className="see-all">Explore communities <span>→</span></Link>
       <div className="sidebar-footer">
-        <span>KyU Konnekt is a free space for the whole community.</span>
+        <span>KyU Community is a free space for the whole community.</span>
 
         <div>
           <a
@@ -76,7 +76,7 @@ export default function LeftSidebar({ sidebarOpen, setSidebarOpen, openComposer,
         </div>
 
         <small>
-          © {new Date().getFullYear()} KyU Konnekt. All rights reserved.
+          © {new Date().getFullYear()} KyU Community. All rights reserved.
         </small>
 
         <small>
