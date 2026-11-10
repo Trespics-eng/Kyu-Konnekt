@@ -1,3 +1,11 @@
+import {
+  getValidAuthToken,
+  getRefreshToken,
+  setSession,
+  clearSession,
+  recordActivity,
+} from './session';
+
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1').replace(/\/$/, '');
 
 export type ApiEnvelope<T> = {
@@ -11,13 +19,17 @@ export class ApiError extends Error {
   status: number;
   errors: unknown;
   requestId?: string;
+  endpoint: string;
+  method: string;
 
-  constructor(message: string, status: number, errors: unknown, requestId?: string) {
+  constructor(message: string, status: number, errors: unknown, requestId?: string, endpoint = '', method = 'GET') {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
     this.requestId = requestId;
+    this.endpoint = endpoint;
+    this.method = method;
   }
 }
 
@@ -26,25 +38,86 @@ type ApiOptions = Omit<RequestInit, 'headers'> & {
   headers?: HeadersInit;
 };
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+      .then(async (response) => {
+        const result = await response.json().catch(() => null);
+        const session = result?.data?.session;
+        if (!response.ok || !session?.access_token) {
+          clearSession('unauthorized');
+          return null;
+        }
+        setSession(session.access_token, session.refresh_token);
+        return session.access_token as string;
+      })
+      .catch(() => {
+        clearSession('unauthorized');
+        return null;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
 export async function apiRequest<T>(path: string, options: ApiOptions = {}): Promise<ApiEnvelope<T>> {
   const { accessToken, headers: suppliedHeaders, ...requestOptions } = options;
+  const method = requestOptions.method || 'GET';
+  const endpoint = path.startsWith('/') ? path : `/${path}`;
   const headers = new Headers(suppliedHeaders);
   if (requestOptions.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
-  // If no accessToken is explicitly provided, check localStorage
-  const token = accessToken || localStorage.getItem('kyu:auth_token');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  // If no accessToken is explicitly provided, fetch valid token from sessionStorage
+  const token = accessToken !== undefined ? accessToken : getValidAuthToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+    recordActivity();
+  }
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, { ...requestOptions, headers });
-  } catch {
-    throw new ApiError('Could not reach the KyU Connect server. Check your connection and try again.', 0, null);
+    response = await fetch(`${API_BASE_URL}${endpoint}`, { ...requestOptions, headers });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Network request failed';
+    const apiError = new ApiError(`Could not reach the KyU Connect server for ${method} ${endpoint}. ${detail}`, 0, null, undefined, endpoint, method);
+    console.error('[KyU API network error]', apiError);
+    throw apiError;
+  }
+
+  if (response.status === 401 && (token || getRefreshToken())) {
+    const refreshedToken = await refreshAccessToken();
+    if (refreshedToken) {
+      headers.set('Authorization', `Bearer ${refreshedToken}`);
+      try {
+        response = await fetch(`${API_BASE_URL}${endpoint}`, { ...requestOptions, headers });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'Network request failed';
+        throw new ApiError(`Could not reach the KyU Connect server for ${method} ${endpoint}. ${detail}`, 0, null, undefined, endpoint, method);
+      }
+    } else {
+      // Refresh failed; purge session to prevent repeating 401 errors
+      clearSession('unauthorized');
+    }
   }
 
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {
-    throw new ApiError(body?.message || 'The request could not be completed.', response.status, body?.errors ?? null, body?.requestId);
+    if (response.status === 401) {
+      clearSession('unauthorized');
+    }
+    const apiError = new ApiError(body?.message || `Request failed with HTTP ${response.status}.`, response.status, body?.errors ?? null, body?.requestId, endpoint, method);
+    console.error('[KyU API error]', { endpoint, method, status: response.status, requestId: body?.requestId, code: body?.code, errors: body?.errors, message: apiError.message });
+    throw apiError;
   }
   return body as ApiEnvelope<T>;
 }
@@ -357,6 +430,23 @@ export function getUploadSignatureApi(payload: { purpose: string; mimeType: stri
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export async function uploadPostMediaApi(file: File): Promise<{ media_url: string; media_type: 'image' | 'video' }> {
+  const form = new FormData();
+  form.append('file', file);
+  const token = getValidAuthToken();
+  const response = await fetch(`${API_BASE_URL}/uploads/media`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (response.status === 401) {
+    clearSession('unauthorized');
+  }
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.success) throw new Error(result?.message || 'Media upload failed.');
+  return result.data;
 }
 
 // ----------------------------------------------------

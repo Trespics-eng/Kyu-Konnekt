@@ -64,6 +64,37 @@
   flex-wrap: wrap;
 }
 
+.composer-media-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.composer-media-link input[type='url'] {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.composer-media-link select {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.composer-media-preview-link {
+  display: block;
+  padding: 18px;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .upload-control {
   display: inline-flex;
   align-items: center;

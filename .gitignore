@@ -12,6 +12,8 @@ build/
 .env
 .env.*
 !.env.example
+# Allow production env — contains only the public API URL, no secrets
+!.env.production
 *.pem
 
 # Logs

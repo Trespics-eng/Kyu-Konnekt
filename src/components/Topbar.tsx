@@ -5,6 +5,7 @@ import type { MemberProfile, Post } from '../data/mockData';
 import { Avatar } from './ui';
 import logoImg from './logo.png';
 import { getNotificationsApi, markNotificationReadApi, markAllNotificationsReadApi, globalSearchApi } from '../lib/api';
+import { getValidAuthToken, clearSession } from '../lib/session';
 import './Topbar.css';
 
 type TopbarProps = {
@@ -28,6 +29,7 @@ export default function Topbar({ profile, posts, sidebarOpen, setSidebarOpen, cl
   // Fetch notifications from API
   useEffect(() => {
     let active = true;
+    if (!getValidAuthToken()) return () => { active = false; };
     getNotificationsApi()
       .then((res) => {
         if (active && res?.data && Array.isArray(res.data)) {
@@ -141,7 +143,7 @@ export default function Topbar({ profile, posts, sidebarOpen, setSidebarOpen, cl
               </div>
               <Link to="/profile" onClick={() => setProfileOpen(false)}><UsersRound size={15} /> View profile</Link>
               <Link to="/settings" onClick={() => setProfileOpen(false)}><Settings size={15} /> Settings</Link>
-              <Link to="/login" onClick={() => { localStorage.removeItem('kyu:auth_token'); setProfileOpen(false); }}><LogOut size={15} /> Log out</Link>
+              <Link to="/login" onClick={() => { clearSession('manual'); setProfileOpen(false); }}><LogOut size={15} /> Log out</Link>
             </div>
           )}
         </div>

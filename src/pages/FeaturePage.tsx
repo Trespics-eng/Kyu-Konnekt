@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Check, Clock3, Code2, GraduationCap, Home, Lightbulb, MapPin, MessageCircle, Plus, Search, Send, ShieldAlert, ShieldCheck, SlidersHorizontal, Sprout, Star, UsersRound, ImagePlus, Bookmark, Settings, UserRound, LockKeyhole, Eye, Flag, MoreHorizontal, Calendar, Building2, BookOpen, Clock, CheckCircle2, ClipboardList, FlaskConical, Trash2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Check, Clock3, Code2, GraduationCap, Home, Lightbulb, MapPin, MessageCircle, Plus, Search, Send, ShieldAlert, ShieldCheck, SlidersHorizontal, Sprout, Star, UsersRound, ImagePlus, Bookmark, Settings, UserRound, LockKeyhole, Eye, Flag, MoreHorizontal, Calendar, Building2, BookOpen, Clock, CheckCircle2, ClipboardList, FlaskConical, Trash2, Globe, ExternalLink } from 'lucide-react';
 import type { EventItem, LostItem, MemberProfile, Opportunity, Stay } from '../data/mockData';
 import { defaultProfile } from '../data/mockData';
 import type { SharedContext } from '../components/AppShell';
@@ -31,7 +31,153 @@ import {
 } from '../lib/api';
 import './FeaturePage.css';
 
-type CommunityItem = { name: string; members: string; category: string; description: string; icon: any };
+type CommunityItem = {
+  name: string;
+  members: string;
+  category: string;
+  description: string;
+  icon: any;
+  // External links — may be null/undefined when not set
+  website?: string | null;
+  facebook?: string | null;
+  instagram?: string | null;
+  twitter?: string | null;
+  github?: string | null;
+  youtube?: string | null;
+};
+
+const initialKyUCommunities: CommunityItem[] = [
+  {
+    name: 'Computer Society of Kirinyaga (CSK)',
+    category: 'Technology & Engineering',
+    description: 'The premier student tech community for CS, Software Engineering, IT, and BBIT students at Kirinyaga University. Organizes workshops, hackathons, AI/ML masterclasses, and peer coding mentorship.',
+    members: '384',
+    icon: Code2,
+    website: 'https://computersocietyofkirinyaga.org',
+    github: 'https://github.com/Computer-Society-Of-Kirinyaga',
+    facebook: 'https://www.facebook.com/search/top?q=Computer%20Society%20of%20Kirinyaga',
+  },
+  {
+    name: 'Kirinyaga University Christian Union (KyUCU)',
+    category: 'Faith & Spiritual',
+    description: 'Non-denominational evangelical fellowship dedicated to spiritual formation, praise and worship, discipleship, and evangelism across the KyU campus community.',
+    members: '650',
+    icon: Lightbulb,
+    website: 'https://www.kyuchristianunion.org',
+    facebook: 'https://www.facebook.com/profile.php?id=100079867135744',
+    instagram: 'https://instagram.com/kirinyagauniversity_cu',
+    youtube: 'https://www.youtube.com/@kirinyagauniversitycu43',
+  },
+  {
+    name: 'Kirinyaga University Students Organization (KyUSO)',
+    category: 'Student Governance',
+    description: 'Official representative governing council for all KyU undergraduate and postgraduate students, coordinating welfare, academic advocacy, and administration dialogue.',
+    members: '4,200',
+    icon: ShieldCheck,
+    website: 'https://students.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Students%20Organization',
+  },
+  {
+    name: 'Rotaract Club of Kirinyaga University',
+    category: 'Community Service & Leadership',
+    description: 'Affiliated with Rotary International, empowering young adults through community development, humanitarian drives, youth leadership summits, and professional networking.',
+    members: '145',
+    icon: Globe,
+    website: 'https://www.rotary.org/en/get-involved/rotaract-clubs',
+    facebook: 'https://www.facebook.com/search/top?q=Rotaract%20Club%20of%20Kirinyaga%20University',
+  },
+  {
+    name: 'Kenya Red Cross – KyU Chapter',
+    category: 'Community Service & First Aid',
+    description: 'Campus humanitarian wing providing certified emergency first-aid drills, voluntary blood donation camps, disaster preparedness training, and mental wellness outreach.',
+    members: '210',
+    icon: ShieldAlert,
+    website: 'https://www.redcross.or.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Red%20Cross',
+  },
+  {
+    name: 'Young Catholic Students (YCS - KyU)',
+    category: 'Faith & Spiritual',
+    description: 'Catholic community at Kirinyaga University promoting faith, fellowship, liturgical celebrations, Sunday masses, annual retreats, and community acts of mercy.',
+    members: '195',
+    icon: BookOpen,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Young%20Catholic%20Students%20Kirinyaga%20University',
+  },
+  {
+    name: 'Seventh-Day Adventist (SDA) Campus Ministries',
+    category: 'Faith & Spiritual',
+    description: 'Home for Adventist university students focusing on Sabbath worship, spiritual fellowship, scripture study, choral music, and health missionary campaigns.',
+    members: '160',
+    icon: Star,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20SDA',
+  },
+  {
+    name: 'Muslim Students Association (MSA - KyU)',
+    category: 'Faith & Spiritual',
+    description: 'Nurturing Islamic faith, daily prayers in congregation, Ramadan iftar gatherings, community charity drives, and brotherly/sisterly unity on campus.',
+    members: '130',
+    icon: Home,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Muslim%20Students',
+  },
+  {
+    name: 'KyU Environmental Conservation Club',
+    category: 'Environmental & Sustainability',
+    description: 'Championing environmental conservation, county-wide tree planting initiatives, campus clean-up exercises, climate resilience, and eco-friendly innovations.',
+    members: '220',
+    icon: Sprout,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Environmental%20Club',
+  },
+  {
+    name: 'KyU Innovation & Robotics Hub',
+    category: 'Technology & Engineering',
+    description: 'Hardware, IoT, electronics, automation and robotics lab where KyU students build autonomous rovers, drones, and embedded solutions for local industry challenges.',
+    members: '115',
+    icon: Lightbulb,
+    website: 'https://computersocietyofkirinyaga.org',
+    facebook: 'https://www.facebook.com/search/top?q=KyU%20Robotics',
+    github: 'https://github.com/Computer-Society-Of-Kirinyaga',
+  },
+  {
+    name: 'Kirinyaga University Debate & Model UN',
+    category: 'Academics & Public Speaking',
+    description: 'Competitive collegiate debate society fostering rhetorical prowess, research, critical analysis, parliamentary procedure, and national Model UN participation.',
+    members: '95',
+    icon: MessageCircle,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Debate',
+  },
+  {
+    name: 'KyU Performing Arts, Drama & Music Society',
+    category: 'Arts & Culture',
+    description: 'Celebrating cultural talent and creative arts through drama stage plays, comedy, spoken-word poetry, choral recitals, and modern dance performances.',
+    members: '180',
+    icon: UsersRound,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Drama%20Club',
+  },
+  {
+    name: 'KyU Peer Counselors Association',
+    category: 'Health & Wellness',
+    description: 'Empathetic student peer counselors working in coordination with the Dean of Students to provide mental wellness advocacy, guidance, and substance abuse awareness.',
+    members: '85',
+    icon: CheckCircle2,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=KyU%20Peer%20Counselors',
+  },
+  {
+    name: 'Kirinyaga University Sports Association',
+    category: 'Sports & Athletics',
+    description: 'Coordinates varsity football, basketball, volleyball, rugby, hockey, table tennis, and athletics teams competing regionally under Kenya Universities Sports Federation (KUSF).',
+    members: '950',
+    icon: GraduationCap,
+    website: 'https://www.kyu.ac.ke',
+    facebook: 'https://www.facebook.com/search/top?q=Kirinyaga%20University%20Sports',
+  },
+];
 type Chat = { id?: string; name: string; initials: string; color?: string; preview: string; time: string; unread: number; online: boolean; messages: string[] };
 
 export default function FeaturePage() {
@@ -43,7 +189,7 @@ export default function FeaturePage() {
   const [query, setQuery] = useState(params.get('q') || '');
   useEffect(() => setQuery(params.get('q') || ''), [params]);
 
-  const [groups, setGroups] = useState<CommunityItem[]>([]);
+  const [groups, setGroups] = useState<CommunityItem[]>(initialKyUCommunities);
   const [groupSearch, setGroupSearch] = useState('');
   const [joined, setJoined] = useLocalStorageState<string[]>('joined-groups', []);
   const [opps, setOpps] = useState<Opportunity[]>([]);
@@ -100,14 +246,20 @@ export default function FeaturePage() {
 
     if (pathname === '/community' || pathname === '/academics') {
       getCommunitiesApi(groupSearch || undefined).then((res) => {
-        if (!ignore && res.data && Array.isArray(res.data)) {
-          const defaultIcons = [Code2, BriefcaseBusiness, Sprout, GraduationCap, FlaskConical, Lightbulb];
+        if (!ignore && res.data && Array.isArray(res.data) && res.data.length > 0) {
+          const defaultIcons = [Code2, BriefcaseBusiness, Sprout, GraduationCap, FlaskConical, Lightbulb, ShieldCheck, Globe];
           setGroups(res.data.map((c: any, index: number) => ({
             name: c.name,
             members: c.members || (c.membersCount ? c.membersCount.toLocaleString('en-KE') : '0'),
             category: c.category || 'Academic community',
             description: c.description || '',
             icon: defaultIcons[index % defaultIcons.length],
+            website: c.website || null,
+            facebook: c.facebook || null,
+            instagram: c.instagram || null,
+            twitter: c.twitter || null,
+            github: c.github || null,
+            youtube: c.youtube || null,
           })));
         }
       }).catch(() => {});
@@ -512,18 +664,7 @@ export default function FeaturePage() {
             <span>{filteredGroups.length} groups</span>
           </div>
         </div>
-        <div className="community-highlight">
-          <div>
-            <Badge tone="teal">FEATURED COMMUNITY</Badge>
-            <h2>Computer Science</h2>
-            <p>Projects, peer learning and practical conversations for curious builders.</p>
-            <span><UsersRound size={14} /> 1,248 members <span>·</span> Active today</span>
-          </div>
-          <Button variant={joined.includes('Computer Science') ? 'secondary' : 'primary'} onClick={() => toggleJoin('Computer Science')}>
-            {joined.includes('Computer Science') ? <Check size={15} /> : <Plus size={15} />}
-            {joined.includes('Computer Science') ? 'Joined' : 'Join community'}
-          </Button>
-        </div>
+
         <SectionHeading title={pathname === '/academics' ? 'Academic communities' : 'Popular communities'} action={<span className="results-label">A place to ask, share and grow</span>} />
         <div className="community-grid">
           {filteredGroups.map((group) => {
@@ -540,6 +681,53 @@ export default function FeaturePage() {
                 <small className="community-card-category">{group.category}</small>
                 <h3>{group.name}</h3>
                 <p>{group.description}</p>
+                {(group.website || group.facebook || group.instagram || group.github || group.youtube) && (
+                  <div className="community-live-links">
+                    {group.website && (
+                      <a href={group.website} target="_blank" rel="noopener noreferrer" className="community-link-pill website" title={`Visit ${group.name} website`}>
+                        <Globe size={12} />
+                        <span>Website</span>
+                        <ExternalLink size={10} className="pill-ext" />
+                      </a>
+                    )}
+                    {group.facebook && (
+                      <a href={group.facebook} target="_blank" rel="noopener noreferrer" className="community-link-pill facebook" title={`Visit ${group.name} on Facebook`}>
+                        <svg className="social-svg-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <span>Facebook</span>
+                        <ExternalLink size={10} className="pill-ext" />
+                      </a>
+                    )}
+                    {group.instagram && (
+                      <a href={group.instagram} target="_blank" rel="noopener noreferrer" className="community-link-pill instagram" title={`Visit ${group.name} on Instagram`}>
+                        <svg className="social-svg-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                        <span>Instagram</span>
+                        <ExternalLink size={10} className="pill-ext" />
+                      </a>
+                    )}
+                    {group.github && (
+                      <a href={group.github} target="_blank" rel="noopener noreferrer" className="community-link-pill github" title={`Visit ${group.name} on GitHub`}>
+                        <svg className="social-svg-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                        </svg>
+                        <span>GitHub</span>
+                        <ExternalLink size={10} className="pill-ext" />
+                      </a>
+                    )}
+                    {group.youtube && (
+                      <a href={group.youtube} target="_blank" rel="noopener noreferrer" className="community-link-pill youtube" title={`Visit ${group.name} on YouTube`}>
+                        <svg className="social-svg-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                        <span>YouTube</span>
+                        <ExternalLink size={10} className="pill-ext" />
+                      </a>
+                    )}
+                  </div>
+                )}
                 <div className="community-card-foot">
                   <span><UsersRound size={14} /> {group.members} members</span>
                   <button className={`join-link${isJoined ? ' joined' : ''}`} onClick={() => toggleJoin(group.name)}>

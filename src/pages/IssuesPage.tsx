@@ -13,6 +13,7 @@ import {
   toggleIssueFollowApi,
   addIssueCommentApi,
 } from '../lib/api';
+import { getValidAuthToken } from '../lib/session';
 import './IssuesPage.css';
 
 const categories = ['Insecurity and Robbery', 'Electricity Problems', 'Water Shortages', 'Poor Roads', 'Garbage and Sanitation', 'Harassment and Discrimination', 'Internet Connectivity', 'Accommodation Problems', 'Transport Challenges', 'University Facilities', 'Other Community Concerns'];
@@ -44,6 +45,8 @@ export default function IssuesPage() {
   const [confidential, setConfidential] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; url: string; type: string } | null>(null);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [guidanceResult, setGuidanceResult] = useState<any>(null);
 
   // Fetch live issues from API
   useEffect(() => {
@@ -58,7 +61,8 @@ export default function IssuesPage() {
       }
     }).catch(() => {});
 
-    getConfidentialIssuesApi().then((res) => {
+    const sessionToken = getValidAuthToken();
+    if (sessionToken) getConfidentialIssuesApi().then((res) => {
       if (!ignore && res.data && Array.isArray(res.data)) {
         setPrivateIssues(res.data.map((i: any) => ({
           id: i.id,
@@ -127,17 +131,9 @@ export default function IssuesPage() {
       attachmentName: attachment?.name,
     };
 
-    if (confidential) {
-      setPrivateIssues((items) => [issue, ...items]);
-      toast('Your confidential report was submitted privately. It is not visible in public issue lists.');
-    } else {
-      setIssues((items) => [issue, ...items]);
-      toast('Your report is submitted. The community can now follow its progress.');
-    }
-    reset();
-
+    setSubmitting(true);
     try {
-      await createIssueApi({
+      const result = await createIssueApi({
         title: title.trim(),
         category,
         location: location.trim(),
@@ -148,8 +144,21 @@ export default function IssuesPage() {
         media_url: attachment?.url,
         attachment_name: attachment?.name,
       });
-    } catch {
-      // Handled locally
+      const saved = result.data;
+      issue.id = saved.id;
+      if (confidential) {
+        setPrivateIssues((items) => [issue, ...items]);
+        toast('Your confidential report was submitted privately.');
+      } else {
+        setIssues((items) => [{ ...issue, reporter: profile.name }, ...items]);
+        toast('Your report was submitted and sent to the admin team.');
+      }
+      setGuidanceResult(saved.guidance || null);
+      reset();
+    } catch (err: any) {
+      setError(err?.message || 'The report could not be submitted. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -472,8 +481,21 @@ export default function IssuesPage() {
             {error && <p className="form-error">{error}</p>}
             <div className="modal-actions">
               <span className="muted-small">Please do not include private identification numbers.</span>
-              <Button onClick={submit}>Submit report <ArrowUpRight size={15} /></Button>
+              <Button onClick={submit} disabled={submitting}>{submitting ? 'Submitting and finding guidance…' : 'Submit report'} {!submitting && <ArrowUpRight size={15} />}</Button>
             </div>
+          </div>
+        </Modal>
+      )}
+      {guidanceResult && (
+        <Modal title="Guidance for your report" subtitle="Your report was received. Here are suggested next steps from the issue routing assistant." onClose={() => setGuidanceResult(null)}>
+          <div className="space-y-4 text-sm text-slate-700">
+            <div><span className="text-xs font-semibold uppercase tracking-wide text-teal-700">Issue identified</span><p className="mt-1 font-semibold">{guidanceResult.issue_classification || category}</p>{guidanceResult.affected_location && <p className="text-xs text-slate-500">{guidanceResult.affected_location}</p>}</div>
+            {guidanceResult.is_emergency && <p className="rounded-lg bg-rose-50 p-3 text-xs font-semibold text-rose-800">This may be an emergency. Contact emergency services immediately using the verified emergency contact details shown below.</p>}
+            {guidanceResult.primary_authority?.name && <p className="text-xs"><b>Responsible authority:</b> {guidanceResult.primary_authority.name}</p>}
+            {guidanceResult.recommended_steps && <div className="rounded-lg bg-teal-50 p-3"><b className="text-xs">Recommended approach</b><p className="mt-1 whitespace-pre-line text-xs">{guidanceResult.recommended_steps}</p></div>}
+            {guidanceResult.contact_details && <div className="space-y-1 text-xs">{guidanceResult.contact_details.phone && <p><b>Phone:</b> {guidanceResult.contact_details.phone}</p>}{guidanceResult.contact_details.email && <p><b>Email:</b> {guidanceResult.contact_details.email}</p>}{guidanceResult.contact_details.office && <p><b>Office:</b> {guidanceResult.contact_details.office}</p>}</div>}
+            {guidanceResult.official_reporting_link && <a href={guidanceResult.official_reporting_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 underline">Open official reporting page <ArrowUpRight size={13}/></a>}
+            {guidanceResult.evidence_needed && <p className="text-xs"><b>Useful details to prepare:</b> {guidanceResult.evidence_needed}</p>}
           </div>
         </Modal>
       )}

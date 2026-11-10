@@ -37,7 +37,11 @@ export default function RightSidebar({ toast, className = '' }: RightSidebarProp
     getEventsApi()
       .then((res) => {
         if (active && res?.data && Array.isArray(res.data)) {
-          setUpcomingEvents(res.data.slice(0, 2).map((e: any) => ({
+          const upcoming = res.data.filter((event: any) => {
+            const timestamp = Date.parse(event.date);
+            return Number.isFinite(timestamp) && timestamp >= new Date().setHours(0, 0, 0, 0);
+          }).sort((a: any, b: any) => Date.parse(a.date) - Date.parse(b.date));
+          setUpcomingEvents(upcoming.slice(0, 2).map((e: any) => ({
             title: e.title,
             time: e.time || '',
             location: e.location || '',
@@ -119,16 +123,14 @@ export default function RightSidebar({ toast, className = '' }: RightSidebarProp
           <span className="title-icon title-icon-blue"><BadgeCheck size={15} /></span>
           <h3>Community announcements</h3>
         </div>
-        <button className="announcement-row" onClick={() => navigate('/events')}>
-          <b>KyU Innovation & Enterprise Day</b>
-          <span>Registration is open · Nov 10</span>
-          <small>See event details <ArrowUpRight size={12} /></small>
-        </button>
-        <button className="announcement-row" onClick={() => navigate('/settings')}>
-          <b>Keep your community safe</b>
-          <span>Never share full ID, bank or account details in public posts.</span>
-          <small>Read community guidance <ArrowUpRight size={12} /></small>
-        </button>
+        {upcomingEvents.slice(0, 2).map((event) => (
+          <button className="announcement-row" key={`${event.title}-${event.date}`} onClick={() => navigate('/events')}>
+            <b>{event.title}</b>
+            <span>{event.date ? new Date(event.date).toLocaleDateString() : 'Community activity'}{event.location ? ` · ${event.location}` : ''}</span>
+            <small>See event details <ArrowUpRight size={12} /></small>
+          </button>
+        ))}
+        {upcomingEvents.length === 0 && <p className="px-4 pb-4 text-xs text-slate-500">No community announcements at the moment.</p>}
       </div>
 
       {suggestedPeople.length > 0 && (

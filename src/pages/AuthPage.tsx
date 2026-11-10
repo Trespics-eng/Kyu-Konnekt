@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, UsersRound } from 'lucide-react';
-import { readImagePreview, readStore } from '../lib/storage';
+import { readImagePreview, readStore, writeStore } from '../lib/storage';
 import { loginApi, registerApi, forgotPasswordApi, updateMeApi } from '../lib/api';
+import { setSession, consumeSessionNotice } from '../lib/session';
 import type { MemberProfile } from '../data/mockData';
 import { defaultProfile } from '../data/mockData';
 import { Avatar, BrandMark, Button } from '../components/ui';
@@ -22,14 +23,20 @@ export default function AuthPage() {
   const [email, setEmail] = useState(() => setup ? storedProfile.email || '' : '');
   const [password, setPassword] = useState('');
   const [category, setCategory] = useState(() => setup ? storedProfile.category || storedProfile.role.split(' · ')[0] : 'Student');
-  const [school, setSchool] = useState(() => setup ? storedProfile.school || storedProfile.department || '' : '');
-  const [course, setCourse] = useState(() => setup ? storedProfile.course || '' : '');
-  const [year, setYear] = useState(() => setup ? storedProfile.year || '' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [image, setImage] = useState(() => setup ? storedProfile.image || '' : '');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const notice = consumeSessionNotice();
+    if (notice) return notice;
+    return '';
+  });
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const notice = consumeSessionNotice();
+    if (notice) setError(notice);
+  }, []);
 
   const title = forgot ? 'Reset your password' : setup ? 'Set up your profile' : signup ? 'Make your place' : 'Welcome back';
   const subtitle = forgot ? 'We’ll send a reset link to the email you use for KyU Community.' : setup ? 'Add a few details so your community can get to know you.' : signup ? 'Connect with the people and ideas around KyU.' : 'Your community is just a sign-in away.';
@@ -72,18 +79,14 @@ export default function AuthPage() {
           password,
           name: name.trim(),
           category,
-          school: school.trim() || undefined,
-          department: school.trim() || undefined,
-          course: course.trim() || undefined,
-          year: year || undefined,
           avatar_url: image || undefined,
         });
 
         if (res.data?.session?.access_token) {
-          localStorage.setItem('kyu:auth_token', res.data.session.access_token);
+          setSession(res.data.session.access_token, res.data.session.refresh_token, res.data.profile);
         }
         if (res.data?.profile) {
-          localStorage.setItem('kyu:profile', JSON.stringify(res.data.profile));
+          writeStore('profile', res.data.profile);
         }
 
         setSuccess('Account created! Welcome to KyU Community.');
@@ -98,15 +101,11 @@ export default function AuthPage() {
         const res = await updateMeApi({
           name: name.trim(),
           category,
-          school: school.trim() || undefined,
-          department: school.trim() || undefined,
-          course: course.trim() || undefined,
-          year: year || undefined,
           avatar_url: image || undefined,
         });
 
         if (res.data) {
-          localStorage.setItem('kyu:profile', JSON.stringify(res.data));
+          writeStore('profile', res.data);
         }
 
         setSuccess('Profile updated successfully.');
@@ -115,10 +114,10 @@ export default function AuthPage() {
         // Login
         const res = await loginApi({ email: email.trim(), password });
         if (res.data?.session?.access_token) {
-          localStorage.setItem('kyu:auth_token', res.data.session.access_token);
+          setSession(res.data.session.access_token, res.data.session.refresh_token, res.data.profile);
         }
         if (res.data?.profile) {
-          localStorage.setItem('kyu:profile', JSON.stringify(res.data.profile));
+          writeStore('profile', res.data.profile);
         }
 
         setSuccess('Signed in successfully.');
@@ -136,12 +135,8 @@ export default function AuthPage() {
           id: 'me',
           name: fullName,
           initials: fullName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase(),
-          role: `${category}${course.trim() ? ` · ${course.trim()}` : ''}`,
+          role: category,
           category,
-          department: school.trim() || storedProfile.department,
-          school: school.trim() || storedProfile.school,
-          course: course.trim() || storedProfile.course,
-          year: year || storedProfile.year,
           email: email.trim() || storedProfile.email,
           image: image || storedProfile.image,
         };
@@ -214,27 +209,6 @@ export default function AuthPage() {
                     {categories.map((x) => <option key={x}>{x}</option>)}
                   </select>
                 </label>
-                {['Student', 'Lecturer', 'University Staff'].includes(category) && (
-                  <>
-                    <label className="form-field">
-                      <span>School or department</span>
-                      <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="e.g. Pure and Applied Sciences" />
-                    </label>
-                    <div className="form-grid">
-                      <label className="form-field">
-                        <span>Course (optional)</span>
-                        <input value={course} onChange={(e) => setCourse(e.target.value)} placeholder="e.g. Computer Science" />
-                      </label>
-                      <label className="form-field">
-                        <span>Year of study</span>
-                        <select value={year} onChange={(e) => setYear(e.target.value)}>
-                          <option value="">Select year</option>
-                          {['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5+'].map((x) => <option key={x}>{x}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                  </>
-                )}
                 <label className="form-field">
                   <span>Profile photo (optional)</span>
                   <label className="auth-photo-picker">

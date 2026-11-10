@@ -50,6 +50,9 @@ function PostCard({
   const [commentText, setCommentText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const sourceMatch = post.body.match(/(?:^|\n)Source URL:\s*(https?:\/\/\S+)/i);
+  const sourceUrl = sourceMatch?.[1]?.replace(/[),.]+$/, '');
+  const visibleBody = sourceUrl ? post.body.replace(/\n\nSource URL:\s*https?:\/\/\S+\s*$/i, '') : post.body;
 
   const submitComment = () => {
     if (!commentText.trim()) return;
@@ -92,16 +95,19 @@ function PostCard({
       </div>
 
       <div className="post-content">
-        <p className={expanded ? '' : 'post-text-clamp'}>{post.body}</p>
-        {post.body.length > 230 && (
+        <p className={expanded ? '' : 'post-text-clamp'}>{visibleBody}</p>
+        {visibleBody.length > 230 && (
           <button className="read-more" onClick={() => setExpanded(!expanded)}>
             {expanded ? 'Show less' : 'Read more'}
           </button>
         )}
+        {sourceUrl && <a className="read-more source-attribution" href={sourceUrl} target="_blank" rel="noopener noreferrer">View original source <ArrowUpRight size={13} /></a>}
       </div>
 
       {post.image && (
-        post.mediaType === 'video' ? (
+        post.mediaType === 'link' ? (
+          <a className="post-image-button post-media-link" href={post.image} target="_blank" rel="noopener noreferrer">Open attached image or video <ArrowUpRight size={15} /></a>
+        ) : post.mediaType === 'video' ? (
           <video className="post-image post-video" src={post.image} controls aria-label="Community post video" />
         ) : (
           <button className="post-image-button" onClick={() => setExpanded(true)} aria-label="View attached image">

@@ -428,6 +428,13 @@
   font-weight: 700;
 }
 
+.source-attribution {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+
 .post-image-button {
   width: 100%;
   border: 0;
@@ -436,6 +443,18 @@
   overflow: hidden;
   padding: 0;
   margin: 4px 0 8px;
+}
+
+.post-media-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .post-image {

@@ -264,38 +264,7 @@
   color: #64748b;
 }
 
-.community-highlight {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px;
-  background: linear-gradient(120deg, #eff6ff, #f0fdfa);
-  border: 1px solid #dbeafe;
-  border-radius: 14px;
-  margin: 14px 0 20px;
-  flex-wrap: wrap;
-}
 
-.community-highlight h2 {
-  font: 800 16px 'Manrope', sans-serif;
-  color: #1e3a8a;
-  margin: 8px 0 4px;
-}
-
-.community-highlight p {
-  font-size: 12px;
-  color: #475569;
-  margin: 0 0 8px;
-}
-
-.community-highlight > div > span:last-child {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #64748b;
-}
 
 .community-grid {
   display: grid;
@@ -353,6 +322,90 @@
   color: #475569;
   margin: 0;
   flex: 1;
+}
+
+.community-live-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #f1f5f9;
+}
+
+.community-link-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  transition: all 0.15s ease-in-out;
+}
+
+.community-link-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.community-link-pill.website:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.community-link-pill.facebook {
+  color: #1877f2;
+}
+
+.community-link-pill.facebook:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #1877f2;
+}
+
+.community-link-pill.instagram {
+  color: #e1306c;
+}
+
+.community-link-pill.instagram:hover {
+  background: #fdf2f8;
+  border-color: #fbcfe8;
+  color: #be185d;
+}
+
+.community-link-pill.github {
+  color: #0f172a;
+}
+
+.community-link-pill.github:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.community-link-pill.youtube {
+  color: #dc2626;
+}
+
+.community-link-pill.youtube:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.social-svg-icon {
+  flex-shrink: 0;
+}
+
+.pill-ext {
+  opacity: 0.6;
 }
 
 .community-card-foot {
@@ -1977,16 +2030,6 @@
   .lost-grid,
   .discovery-grid {
     grid-template-columns: 1fr;
-  }
-
-  .community-highlight {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .community-highlight > .button {
-    width: 100%;
   }
 
   .feature-hero-row,
